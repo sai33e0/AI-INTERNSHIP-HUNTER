@@ -284,10 +284,464 @@ ai-internship-hunter/
 └── 🔒 .env.local.example           # Environment variable template
 ```
 
-## Project Structure
+## 🎯 Usage Guide
 
+### 1. Quick Start - Your First 10 Minutes
+
+**Step 1: Create Your Profile**
+- Sign up with email or GitHub OAuth
+- Upload your resume (PDF/DOCX supported)
+- Add your GitHub profile for automatic skill extraction
+- Set preferences for locations, company size, and remote work
+
+**Step 2: Discover Opportunities**
+- Click "Start Scraping" to find internships from multiple platforms
+- Use AI-powered filters to find perfect matches
+- Save interesting opportunities to your dashboard
+
+**Step 3: Apply Smartly**
+- Generate personalized cover letters with one click
+- Use smart application features where available
+- Track all applications in the central dashboard
+
+### 2. Advanced Features
+
+**AI-Powered Matching**
+```typescript
+// The system uses semantic similarity to match your profile
+const matchScore = await aiMatcher.calculateMatch(
+  userResume,
+  jobDescription,
+  userPreferences
+);
+// Returns score 0-100 with detailed breakdown
 ```
-/app
+
+**Cover Letter Generation**
+- Choose from multiple tones: Professional, Casual, Enthusiastic
+- Custom length options: Short, Medium, Long
+- AI extracts relevant achievements from your resume
+- Company research integration for personalization
+
+**Real-time Application Tracking**
+- Instant notifications when application status changes
+- Follow-up reminders based on company response patterns
+- Timeline view of entire application journey
+- Analytics on response rates and success metrics
+
+## 🔧 API Reference
+
+### Scraping Endpoints
+
+**Start Scraping**
+```http
+POST /api/scrape
+Content-Type: application/json
+
+{
+  "sources": ["linkedin", "indeed", "glassdoor"],
+  "keywords": ["software engineering", "data science"],
+  "locations": ["New York", "San Francisco", "Remote"],
+  "limit": 50,
+  "filters": {
+    "remoteOnly": false,
+    "paidOnly": true,
+    "minSalary": 50000
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "scrapedCount": 47,
+    "newInternships": 12,
+    "updatedInternships": 5,
+    "internships": [...],
+    "matchScores": {...}
+  }
+}
+```
+
+### AI Matching
+
+**Resume-Job Matching**
+```http
+POST /api/match
+Content-Type: application/json
+
+{
+  "userId": "user-uuid",
+  "internshipIds": ["internship-uuid-1", "internship-uuid-2"],
+  "weightPreferences": {
+    "skills": 0.4,
+    "experience": 0.3,
+    "location": 0.2,
+    "company": 0.1
+  }
+}
+```
+
+### Cover Letter Generation
+
+**Generate Cover Letter**
+```http
+POST /api/coverletter
+Content-Type: application/json
+
+{
+  "userId": "user-uuid",
+  "internshipId": "internship-uuid",
+  "tone": "professional",
+  "length": "medium",
+  "customPoints": [
+    "Emphasize machine learning experience",
+    "Include research project details"
+  ]
+}
+```
+
+### Application Management
+
+**Track Application Status**
+```http
+GET /api/applications?userId=user-uuid&status=pending
+
+PUT /api/applications/{applicationId}
+Content-Type: application/json
+
+{
+  "status": "interviewing",
+  "notes": "Phone screen scheduled for next Tuesday",
+  "interviewDates": ["2024-02-15T14:00:00Z"],
+  "nextSteps": "Technical interview with engineering team"
+}
+```
+
+## 🔒 Security & Privacy
+
+### Multi-Layer Security Architecture
+
+**Row Level Security (RLS)**
+- Database-level security policies
+- Users can only access their own data
+- Automatic SQL injection prevention
+
+**API Security**
+- Rate limiting on all endpoints
+- Request validation with Zod schemas
+- CORS configuration for cross-origin protection
+- Content Security Policy (CSP) headers
+
+**Data Protection**
+- Encrypted data transmission (HTTPS)
+- Sensitive data encryption at rest
+- GDPR compliance features
+- User data export and deletion tools
+
+**Input Sanitization**
+- SQL injection prevention with parameterized queries
+- XSS protection with content sanitization
+- File upload validation and scanning
+- CSRF protection on all forms
+
+## 📊 Monitoring & Analytics
+
+### Application Performance Metrics
+
+**Success Analytics Dashboard**
+- Application response rate by industry
+- Interview conversion rates
+- Offer acceptance statistics
+- Average time-to-response metrics
+
+**AI Performance Monitoring**
+- Cover letter quality scores
+- Match accuracy improvements over time
+- User satisfaction ratings
+- Content generation success rates
+
+**System Health**
+- API response time monitoring
+- Error rate tracking and alerting
+- Database performance metrics
+- Web scraping success rates
+
+### Real-time Insights
+
+**Smart Recommendations**
+```typescript
+// AI-driven insights based on your application patterns
+const insights = await aiAgent.generateInsights(userId, {
+  timeRange: '30-days',
+  includeRecommendations: true
+});
+
+// Returns:
+// - Skills gaps to address
+// - Companies with high response rates
+// - Optimal application timing
+// - Salary negotiation opportunities
+```
+
+## 🚀 Deployment Guide
+
+### Vercel Deployment (Recommended)
+
+**1. Connect Repository**
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy to preview
+vercel
+
+# Deploy to production
+vercel --prod
+```
+
+**2. Environment Variables**
+Configure these in Vercel dashboard:
+- `OPENAI_API_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXTAUTH_SECRET`
+
+**3. Custom Domain**
+- Add custom domain in Vercel dashboard
+- Configure DNS settings
+- Enable SSL certificate
+
+### Docker Deployment
+
+```dockerfile
+# Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+RUN npm run build
+
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+```bash
+# Build and run
+docker build -t ai-internship-hunter .
+docker run -p 3000:3000 --env-file .env.local ai-internship-hunter
+```
+
+### Environment-Specific Configurations
+
+**Development**
+```bash
+npm run dev          # Local development
+npm run test         # Run test suite
+npm run typecheck    # TypeScript validation
+npm run lint         # Code quality checks
+```
+
+**Production**
+```bash
+npm run build        # Production build
+npm run start        # Start production server
+npm run analyze      # Bundle analysis
+```
+
+## 🧪 Testing Strategy
+
+### Test Suite Overview
+
+**Unit Tests**
+- API endpoint testing
+- Utility function validation
+- Component unit tests
+- Database operation testing
+
+**Integration Tests**
+- End-to-end user flows
+- Database integration
+- External API integration
+- Real-time subscription testing
+
+**E2E Testing**
+```bash
+# Run full test suite
+npm run test
+
+# Run specific test types
+npm run test:unit
+npm run test:integration
+npm run test:e2e
+
+# Generate coverage report
+npm run test:coverage
+```
+
+### Quality Assurance
+
+**Automated Checks**
+- TypeScript compilation
+- ESLint code quality
+- Prettier formatting
+- Dependency vulnerability scanning
+
+**Performance Testing**
+- Bundle size optimization
+- API response time testing
+- Database query optimization
+- Memory usage monitoring
+
+## 🔍 Troubleshooting
+
+### Common Issues & Solutions
+
+**Build Errors**
+```bash
+# TypeScript compilation issues
+npm run typecheck
+# Fix type errors before building
+
+# Missing dependencies
+npm install
+# Ensure all dependencies are installed
+```
+
+**Database Connection Issues**
+```bash
+# Check Supabase credentials
+echo $NEXT_PUBLIC_SUPABASE_URL
+echo $NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+# Test database connection
+npx supabase status
+```
+
+**OpenAI API Errors**
+```bash
+# Verify API key and billing
+curl -H "Authorization: Bearer $OPENAI_API_KEY" \
+     https://api.openai.com/v1/models
+
+# Check usage limits
+# Visit platform.openai.com/usage
+```
+
+**Web Scraping Issues**
+```bash
+# Check browser dependencies
+npx playwright install
+
+# Test scraping manually
+npm run test:scraping
+```
+
+## 🤝 Contributing Guidelines
+
+### Development Workflow
+
+**1. Fork & Clone**
+```bash
+git clone https://github.com/yourusername/ai-internship-hunter.git
+cd ai-internship-hunter
+git checkout -b feature/your-feature-name
+```
+
+**2. Development Standards**
+- Follow TypeScript best practices
+- Write tests for new features
+- Use conventional commit messages
+- Ensure all tests pass before PR
+
+**3. Code Quality**
+```bash
+# Run quality checks before committing
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
+
+**4. Submit Changes**
+```bash
+git commit -m "feat: add new feature description"
+git push origin feature/your-feature-name
+# Open Pull Request with detailed description
+```
+
+### Contribution Areas
+
+**High Priority Contributions**
+- Additional scraping sources (Handshake, AngelList)
+- Enhanced AI matching algorithms
+- Mobile responsive improvements
+- International job market support
+
+**Community Contributions**
+- Bug reports and fixes
+- Documentation improvements
+- Performance optimizations
+- New feature suggestions
+
+## 📄 License & Legal
+
+**License**: ISC License - See [LICENSE](LICENSE) file for details
+
+**Terms of Use**
+- For educational and personal use
+- Commercial use requires permission
+- Respect website terms of service for scraping
+- Comply with API provider terms
+
+**Privacy Policy**
+- User data is never sold to third parties
+- Resume data is used only for matching purposes
+- Implementation of GDPR compliance features
+- Right to data deletion and export
+
+## 🙏 Acknowledgments
+
+**Open Source Projects**
+- [Next.js](https://nextjs.org/) - React framework
+- [Supabase](https://supabase.com/) - Backend-as-a-Service
+- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
+- [Playwright](https://playwright.dev/) - Web automation
+- [OpenAI](https://openai.com/) - AI API services
+
+**Inspiration & Resources**
+- Career services professionals
+- Tech community feedback
+- Open source contributors
+- Beta testers and early adopters
+
+## 📞 Support & Community
+
+**Getting Help**
+- 📧 [Email Support](mailto:support@aiinternshiphunter.com)
+- 💬 [Discord Community](https://discord.gg/aiinternshiphunter)
+- 🐛 [Bug Reports](https://github.com/yourusername/ai-internship-hunter/issues)
+- 📖 [Documentation Wiki](https://github.com/yourusername/ai-internship-hunter/wiki)
+
+**Stay Connected**
+- 🌟 [GitHub Repository](https://github.com/yourusername/ai-internship-hunter)
+- 🐦 [Twitter Updates](https://twitter.com/aiinternshiphunt)
+- 💼 [LinkedIn Company Page](https://linkedin.com/company/ai-internship-hunter)
+- 📰 [Blog & Tutorials](https://blog.aiinternshiphunter.com)
+
+---
+
+**🚀 Built with passion by the AI Internship Hunter Team**
+
+*Empowering students worldwide to land their dream internships through the power of artificial intelligence.*
+
+*Made with ❤️, TypeScript, and cutting-edge AI technology*app
 ├── page.tsx                      # Landing page
 ├── dashboard/page.tsx            # AI dashboard
 ├── upload/page.tsx               # Resume & profile upload
