@@ -221,7 +221,7 @@ export default function TrackerPage() {
     })
   }
 
-  const getDaysAgo = (dateString: string | null) => {
+  const getDaysAgo = (dateString: string | null | undefined) => {
     if (!dateString) return null
     const days = Math.floor((Date.now() - new Date(dateString).getTime()) / (1000 * 60 * 60 * 24))
     return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days} days ago`
