@@ -22,6 +22,7 @@ interface Internship {
   description?: string
   requirements?: string
   salary_range?: string
+  salary?: string
   user_id: string
 }
 
