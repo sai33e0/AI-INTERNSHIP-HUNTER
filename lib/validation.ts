@@ -122,7 +122,7 @@ export function validateRequest<T>(schema: z.ZodSchema<T>, data: unknown): { suc
     return { success: true, data: validatedData }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ')
+      const errorMessages = error.issues.map(err => `${err.path.join('.')}: ${err.message}`).join(', ')
       return { success: false, error: errorMessages }
     }
     return { success: false, error: 'Validation failed' }
