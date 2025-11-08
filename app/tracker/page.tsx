@@ -478,7 +478,7 @@ export default function TrackerPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Applied Date</label>
-                  <p className="text-gray-900">{formatDate(selectedApplication.applied_on || null)}</p>
+                  <p className="text-gray-900">{formatDate(selectedApplication.applied_on)}</p>
                 </div>
 
                 {selectedApplication.cover_letter && (
