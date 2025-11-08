@@ -203,7 +203,7 @@ export class RateLimiter {
     let requests = this.requests.get(identifier) || []
 
     // Remove old requests outside the window
-    requests = requests.filter(timestamp => timestamp > windowStart)
+    requests = requests.filter((timestamp: number) => timestamp > windowStart)
 
     // Check if under the limit
     if (requests.length < this.maxRequests) {
@@ -220,7 +220,7 @@ export class RateLimiter {
     const windowStart = now - this.windowMs
 
     for (const [identifier, timestamps] of this.requests.entries()) {
-      const validTimestamps = timestamps.filter(timestamp => timestamp > windowStart)
+      const validTimestamps = timestamps.filter((timestamp: number) => timestamp > windowStart)
       if (validTimestamps.length === 0) {
         this.requests.delete(identifier)
       } else {
