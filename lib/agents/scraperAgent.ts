@@ -136,7 +136,13 @@ export class ScraperAgent {
 
     try {
       // Set user agent to avoid detection
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
+      await page.route('**/*', (route) => {
+        const headers = {
+          ...route.request().headers(),
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        route.continue({ headers })
+      })
 
       // Construct search URL based on keywords and locations
       const searchUrl = this.buildSearchUrl(source, request)
