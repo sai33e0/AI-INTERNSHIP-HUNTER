@@ -157,7 +157,7 @@ export default function TrackerPage() {
           ? {
               ...app,
               status: newStatus as ApplicationStatus['status'],
-              applied_on: newStatus === 'submitted' ? new Date().toISOString() : app.applied_on,
+              applied_on: newStatus === 'submitted' ? new Date().toISOString() : app.applied_on || undefined,
               updated_at: new Date().toISOString()
             }
           : app
