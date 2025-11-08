@@ -87,7 +87,7 @@ export const applicationRequestSchema = z.object({
   auto_apply: z.boolean().default(false),
   resume_path: z.string().optional(),
   cover_letter_path: z.string().optional(),
-  additional_info: z.record(z.any()).optional()
+  additional_info: z.record(z.string(), z.unknown()).optional()
 })
 
 // File validation schemas
