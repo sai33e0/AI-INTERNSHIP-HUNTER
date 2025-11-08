@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     let preferences: MatchingPreferences = defaultPreferences
     if (weight_preferences) {
-      const total = Object.values(weight_preferences).reduce((sum: number, val: number) => sum + val, 0)
+      const total = Object.values(weight_preferences).reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0)
 
       if (Math.abs(total - 1.0) > 0.1) {
         return NextResponse.json(
