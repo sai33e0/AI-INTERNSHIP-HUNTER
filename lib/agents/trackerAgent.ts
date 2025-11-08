@@ -223,7 +223,13 @@ export class TrackerAgent {
       const page = await this.browser!.newPage()
 
       // Set user agent to avoid detection
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+      await page.route('**/*', (route) => {
+        const headers = {
+          ...route.request().headers(),
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        route.continue({ headers })
+      })
 
       // In a real implementation, this would:
       // 1. Navigate to application portal
