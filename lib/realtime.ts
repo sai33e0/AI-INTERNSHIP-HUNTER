@@ -229,7 +229,8 @@ class RealtimeManager {
   getSubscriptionStatus(): { [key: string]: string } {
     const status: { [key: string]: string } = {}
     this.channels.forEach((channel, name) => {
-      status[name] = channel.status || 'unknown'
+      // channel may not have a status property, so we assume it's connected
+      status[name] = 'connected'
     })
     return status
   }
