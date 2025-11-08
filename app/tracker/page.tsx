@@ -17,7 +17,8 @@ import {
   TrendingUp,
   BarChart3,
   Users,
-  Target
+  Target,
+  X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
