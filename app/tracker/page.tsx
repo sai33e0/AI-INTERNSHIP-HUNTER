@@ -58,7 +58,7 @@ export default function TrackerPage() {
           status: 'pending',
           cover_letter: 'Generated cover letter for Software Engineering Intern position at Google...',
           notes: 'Focus on machine learning experience and GitHub projects',
-          applied_on: null,
+          applied_on: undefined,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           internship: {
