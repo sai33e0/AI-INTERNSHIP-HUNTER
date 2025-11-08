@@ -212,7 +212,7 @@ export default function TrackerPage() {
     return columns
   }
 
-  const formatDate = (dateString: string | null) => {
+  const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'Not applied'
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
