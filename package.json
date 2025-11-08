@@ -27,6 +27,7 @@
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "autoprefixer": "^10.4.21",
     "cheerio": "^1.1.2",
     "clsx": "^2.1.1",
     "langchain": "^1.0.3",
