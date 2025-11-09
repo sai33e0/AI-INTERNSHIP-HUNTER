@@ -1,9 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabaseClient'
 
 export async function GET(request: NextRequest) {
   try {
+    // Authenticate user
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const authenticatedSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
     const { searchParams } = new URL(request.url)
     const user_id = searchParams.get('user_id')
     const status = searchParams.get('status')
@@ -18,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build query
-    let query = supabase
+    let query = authenticatedSupabase
       .from('applications')
       .select(`
         *,
@@ -58,7 +78,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get total count for pagination
-    const { count: totalCount } = await supabase
+    const { count: totalCount } = await authenticatedSupabase
       .from('applications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user_id)
