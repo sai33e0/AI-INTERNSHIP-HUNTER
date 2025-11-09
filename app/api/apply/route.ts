@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chromium, Browser, Page } from 'playwright'
 import { createClient } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabaseClient'
 import { AIResponse } from '@/types'
 
 interface ApplicationRequest {
@@ -126,14 +125,16 @@ export async function POST(request: NextRequest) {
       applicationResult = await submitAutomatedApplication(
         user,
         internship,
-        applicationRequest
+        applicationRequest,
+        authenticatedSupabase
       )
     } else {
       // Manual application tracking
       applicationResult = await trackManualApplication(
         user,
         internship,
-        applicationRequest
+        applicationRequest,
+        authenticatedSupabase
       )
     }
 
@@ -165,7 +166,8 @@ export async function POST(request: NextRequest) {
 async function submitAutomatedApplication(
   user: any,
   internship: any,
-  request: ApplicationRequest
+  request: ApplicationRequest,
+  authenticatedSupabase: any
 ): Promise<AIResponse> {
   let browser: Browser | null = null
 
@@ -226,7 +228,7 @@ async function submitAutomatedApplication(
     }
 
     // Record successful application in database
-    const { data: applicationRecord } = await supabase
+    const { data: applicationRecord } = await authenticatedSupabase
       .from('applications')
       .insert({
         user_id: request.user_id,
@@ -259,13 +261,14 @@ async function submitAutomatedApplication(
 async function trackManualApplication(
   user: any,
   internship: any,
-  request: ApplicationRequest
+  request: ApplicationRequest,
+  authenticatedSupabase: any
 ): Promise<AIResponse> {
   try {
     console.log(`Tracking manual application for ${user.name} to ${internship.title} at ${internship.company}`)
 
     // Create or update application record
-    const { data: applicationRecord } = await supabase
+    const { data: applicationRecord } = await authenticatedSupabase
       .from('applications')
       .upsert({
         user_id: request.user_id,
