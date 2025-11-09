@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { ScraperAgent } from '@/lib/agents/scraperAgent'
 import { ScrapingRequest, AIResponse } from '@/types'
 
@@ -25,6 +26,27 @@ function rateLimit(ip: string, limit: number = 5, windowMs: number = 60000): boo
 
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const authenticatedSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
     // Get client IP for rate limiting
     const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown'
 
@@ -108,6 +130,27 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // Authenticate user
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const authenticatedSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
     // Get scraper status and available sources
     const scraper = new ScraperAgent()
     const statusResult = await scraper.getSourceStatus()

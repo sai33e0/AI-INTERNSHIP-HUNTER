@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chromium, Browser, Page } from 'playwright'
+import { createClient } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabaseClient'
 import { AIResponse } from '@/types'
 
@@ -34,6 +35,27 @@ function rateLimit(ip: string, limit: number = 5, windowMs: number = 60000): boo
 
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const authenticatedSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
     const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown'
 
     // Apply strict rate limiting for applications
@@ -63,13 +85,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user and internship details
-    const { data: user } = await supabase
+    const { data: user } = await authenticatedSupabase
       .from('users')
       .select('*')
       .eq('id', applicationRequest.user_id)
       .single()
 
-    const { data: internship } = await supabase
+    const { data: internship } = await authenticatedSupabase
       .from('internships')
       .select('*')
       .eq('id', applicationRequest.internship_id)
@@ -83,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if application already exists
-    const { data: existingApplication } = await supabase
+    const { data: existingApplication } = await authenticatedSupabase
       .from('applications')
       .select('*')
       .eq('user_id', applicationRequest.user_id)

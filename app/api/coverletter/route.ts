@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { WriterAgent } from '@/lib/agents/writerAgent'
 import { CoverLetterRequest, AIResponse } from '@/types'
 
@@ -24,6 +25,36 @@ function rateLimit(ip: string, limit: number = 20, windowMs: number = 60000): bo
 
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const authenticatedSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
+    // Get authenticated user
+    const { data: { user }, error: authError } = await authenticatedSupabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      )
+    }
+
     const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown'
 
     // Apply rate limiting (cover letters are more expensive)
@@ -36,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const coverLetterRequest: CoverLetterRequest = {
-      user_id: body.user_id,
+      user_id: user.id,
       internship_id: body.internship_id,
       tone: body.tone || 'professional',
       length: body.length || 'medium',
@@ -44,9 +75,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate required fields
-    if (!coverLetterRequest.user_id || !coverLetterRequest.internship_id) {
+    if (!coverLetterRequest.internship_id) {
       return NextResponse.json(
-        { error: 'User ID and Internship ID are required' },
+        { error: 'Internship ID is required' },
         { status: 400 }
       )
     }
@@ -69,8 +100,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Initialize writer agent
-    const writer = new WriterAgent()
+    // Initialize writer agent with authenticated client
+    const writer = new WriterAgent(authenticatedSupabase)
 
     // Generate cover letter
     console.log(`Generating cover letter for user ${coverLetterRequest.user_id}, internship ${coverLetterRequest.internship_id}`)
@@ -143,6 +174,36 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Authenticate user
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const authenticatedSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
+    // Get authenticated user
+    const { data: { user }, error: authError } = await authenticatedSupabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      )
+    }
+
     const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown'
 
     // Apply rate limiting
@@ -154,23 +215,23 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { user_id, internship_id, original_letter, feedback } = body
+    const { internship_id, original_letter, feedback } = body
 
     // Validate required fields
-    if (!user_id || !internship_id || !original_letter || !feedback) {
+    if (!internship_id || !original_letter || !feedback) {
       return NextResponse.json(
-        { error: 'User ID, Internship ID, original letter, and feedback are required' },
+        { error: 'Internship ID, original letter, and feedback are required' },
         { status: 400 }
       )
     }
 
-    // Initialize writer agent
-    const writer = new WriterAgent()
+    // Initialize writer agent with authenticated client
+    const writer = new WriterAgent(authenticatedSupabase)
 
     // Optimize cover letter
-    console.log(`Optimizing cover letter for user ${user_id}, internship ${internship_id}`)
+    console.log(`Optimizing cover letter for user ${user.id}, internship ${internship_id}`)
     const result: AIResponse = await writer.optimizeCoverLetter(
-      user_id,
+      user.id,
       internship_id,
       original_letter,
       feedback
@@ -181,6 +242,41 @@ export async function PUT(request: NextRequest) {
         { error: result.error || 'Cover letter optimization failed' },
         { status: 500 }
       )
+    }
+
+    // Save the optimized cover letter
+    try {
+      // Check if application already exists
+      const { data: existingApplication } = await authenticatedSupabase
+        .from('applications')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('internship_id', internship_id)
+        .single()
+
+      if (existingApplication) {
+        // Update existing application
+        await authenticatedSupabase
+          .from('applications')
+          .update({
+            cover_letter: result.data?.optimizedLetter,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingApplication.id)
+      } else {
+        // Create new application
+        await authenticatedSupabase
+          .from('applications')
+          .insert({
+            user_id: user.id,
+            internship_id: internship_id,
+            status: 'pending',
+            cover_letter: result.data?.optimizedLetter,
+          })
+      }
+    } catch (saveError) {
+      console.error('Error saving optimized cover letter:', saveError)
+      // Don't fail the request if saving fails, but log it
     }
 
     return NextResponse.json({

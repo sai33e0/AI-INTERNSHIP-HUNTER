@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useRef } from 'react'
 import { Upload, File, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +23,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   const [isDragOver, setIsDragOver] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -75,6 +76,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     setSelectedFile(null)
   }
 
+  const handleClick = () => {
+    fileInputRef.current?.click()
+  }
+
   return (
     <div className={cn('w-full', className)}>
       {label && (
@@ -92,11 +97,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               : 'border-gray-300 hover:border-gray-400',
             error && 'border-red-500 bg-red-50'
           )}
+          onClick={handleClick}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
           <input
+            ref={fileInputRef}
             type="file"
             className="hidden"
             onChange={handleFileChange}

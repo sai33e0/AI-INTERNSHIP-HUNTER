@@ -1,5 +1,5 @@
 import { OpenAI } from 'openai'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { CoverLetterRequest, AIResponse } from '@/types'
 
 interface UserProfile {
@@ -22,17 +22,22 @@ interface Internship {
 
 export class WriterAgent {
   private openai: OpenAI
+  private supabase: SupabaseClient
 
-  constructor() {
+  constructor(supabaseClient?: SupabaseClient) {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     })
+    this.supabase = supabaseClient || createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
   }
 
   async generateCoverLetter(request: CoverLetterRequest): Promise<AIResponse> {
     try {
       // Get user profile
-      const { data: user, error: userError } = await supabase
+      const { data: user, error: userError } = await this.supabase
         .from('users')
         .select('*')
         .eq('id', request.user_id)
@@ -43,7 +48,7 @@ export class WriterAgent {
       }
 
       // Get internship details
-      const { data: internship, error: internshipError } = await supabase
+      const { data: internship, error: internshipError } = await this.supabase
         .from('internships')
         .select('*')
         .eq('id', request.internship_id)
@@ -61,9 +66,6 @@ export class WriterAgent {
         request.length || 'medium',
         request.custom_points || []
       )
-
-      // Save cover letter to applications table
-      await this.saveCoverLetter(request.user_id, request.internship_id, coverLetter)
 
       // Generate variations for A/B testing
       const variations = await this.generateVariations(user, internship, coverLetter)
@@ -321,7 +323,7 @@ export class WriterAgent {
   ): Promise<void> {
     try {
       // Check if application already exists
-      const { data: existingApplication } = await supabase
+      const { data: existingApplication } = await this.supabase
         .from('applications')
         .select('id')
         .eq('user_id', userId)
@@ -330,7 +332,7 @@ export class WriterAgent {
 
       if (existingApplication) {
         // Update existing application
-        await supabase
+        await this.supabase
           .from('applications')
           .update({
             cover_letter: coverLetter,
@@ -339,7 +341,7 @@ export class WriterAgent {
           .eq('id', existingApplication.id)
       } else {
         // Create new application
-        await supabase
+        await this.supabase
           .from('applications')
           .insert({
             user_id: userId,
@@ -362,13 +364,13 @@ export class WriterAgent {
   ): Promise<AIResponse> {
     try {
       // Get user and internship context
-      const { data: user } = await supabase
+      const { data: user } = await this.supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single()
 
-      const { data: internship } = await supabase
+      const { data: internship } = await this.supabase
         .from('internships')
         .select('*')
         .eq('id', internshipId)
@@ -426,7 +428,7 @@ export class WriterAgent {
       }
 
       // Save the optimized version
-      await this.saveCoverLetter(userId, internshipId, optimizedLetter)
+      // Note: We don't save here as the API handles saving after returning the result
 
       return {
         success: true,
@@ -470,7 +472,7 @@ export class WriterAgent {
 
   async getCoverLetterTips(internshipId: string): Promise<AIResponse> {
     try {
-      const { data: internship } = await supabase
+      const { data: internship } = await this.supabase
         .from('internships')
         .select('*')
         .eq('id', internshipId)

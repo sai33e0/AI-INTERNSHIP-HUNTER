@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabaseClient'
 
 export async function GET(request: NextRequest) {
@@ -85,6 +86,27 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const authenticatedSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
     const body = await request.json()
     const { user_id, internship_id, status, cover_letter, notes } = body
 
@@ -106,7 +128,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if application already exists
-    const { data: existingApplication } = await supabase
+    const { data: existingApplication } = await authenticatedSupabase
       .from('applications')
       .select('*')
       .eq('user_id', user_id)
@@ -121,7 +143,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new application
-    const { data: application, error } = await supabase
+    const { data: application, error } = await authenticatedSupabase
       .from('applications')
       .insert({
         user_id,
@@ -158,6 +180,27 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Authenticate user
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const authenticatedSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
     const body = await request.json()
     const { application_id, user_id, status, notes, cover_letter } = body
 
@@ -181,7 +224,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if application exists and belongs to user
-    const { data: existingApplication } = await supabase
+    const { data: existingApplication } = await authenticatedSupabase
       .from('applications')
       .select('*')
       .eq('id', application_id)
@@ -215,7 +258,7 @@ export async function PUT(request: NextRequest) {
       updateData.cover_letter = cover_letter
     }
 
-    const { data: application, error } = await supabase
+    const { data: application, error } = await authenticatedSupabase
       .from('applications')
       .update(updateData)
       .eq('id', application_id)
@@ -246,6 +289,27 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Authenticate user
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const authenticatedSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+
     const { searchParams } = new URL(request.url)
     const application_id = searchParams.get('application_id')
     const user_id = searchParams.get('user_id')
@@ -259,7 +323,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if application exists and belongs to user
-    const { data: existingApplication } = await supabase
+    const { data: existingApplication } = await authenticatedSupabase
       .from('applications')
       .select('*')
       .eq('id', application_id)
@@ -274,7 +338,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete application
-    const { error } = await supabase
+    const { error } = await authenticatedSupabase
       .from('applications')
       .delete()
       .eq('id', application_id)

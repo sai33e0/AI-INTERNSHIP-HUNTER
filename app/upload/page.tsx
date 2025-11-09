@@ -68,47 +68,27 @@ export default function UploadPage() {
     setUploadStep('uploading')
 
     try {
-      // Create user profile
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .insert([{
+      // Create user profile using server-side API to bypass RLS
+      const userResponse = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           name: data.name,
           email: data.email,
           github_url: data.github_url || null,
           linkedin_url: data.linkedin_url || null,
-        }])
-        .select()
-        .single()
+        }),
+      })
 
-      if (userError) {
-        // Check if user already exists
-        if (userError.code === '23505') {
-          const { data: existingUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', data.email)
-            .single()
-
-          if (existingUser) {
-            // Update existing user
-            const { error: updateError } = await supabase
-              .from('users')
-              .update({
-                name: data.name,
-                github_url: data.github_url || null,
-                linkedin_url: data.linkedin_url || null,
-              })
-              .eq('email', data.email)
-
-            if (updateError) throw updateError
-            var userId = existingUser.id
-          }
-        } else {
-          throw userError
-        }
-      } else {
-        var userId = userData.id
+      if (!userResponse.ok) {
+        const errorData = await userResponse.json()
+        throw new Error(errorData.error || 'Failed to create user')
       }
+
+      const { user: userData } = await userResponse.json()
+      var userId = userData.id
 
       // Upload resume
       const resumeUrl = await uploadResumeToStorage(resumeFile, userId)
@@ -244,7 +224,7 @@ export default function UploadPage() {
                 placeholder="https://linkedin.com/in/username"
                 {...register('linkedin_url', {
                   pattern: {
-                    value: /^https?:\/\/(www\.)?linkedin\.com\/in\/[\w--]+\/?$/,
+                    value: /^https?:\/\/(www\.)?linkedin\.com\/in\/[\w.-]+\/?$/,
                     message: 'Please enter a valid LinkedIn URL'
                   }
                 })}
