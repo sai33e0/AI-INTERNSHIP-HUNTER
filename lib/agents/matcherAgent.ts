@@ -9,6 +9,8 @@ import { OpenAI as OpenAIClient } from 'openai'
 import { supabase } from '@/lib/supabaseClient'
 import { MatchingPreferences, AIResponse } from '@/types'
 
+const CHAT_MODEL = 'gpt-4o-mini'
+
 interface UserProfile {
   id: string
   name: string
@@ -39,7 +41,7 @@ export class MatcherAgent {
 
   constructor() {
     this.model = new ChatOpenAI({
-      model: 'gpt-4o-mini',
+      model: CHAT_MODEL,
       temperature: 0.3,
       apiKey: process.env.OPENAI_API_KEY,
     })

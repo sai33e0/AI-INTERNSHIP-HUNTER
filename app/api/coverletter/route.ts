@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown'
+    const ip = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown'
 
     // Apply rate limiting (cover letters are more expensive)
     if (!rateLimit(ip, 20, 60000)) { // 20 requests per minute
@@ -204,7 +204,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown'
+    const ip = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown'
 
     // Apply rate limiting
     if (!rateLimit(ip, 10, 60000)) { // 10 requests per minute for optimization

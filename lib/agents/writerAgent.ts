@@ -8,6 +8,8 @@ import { StringOutputParser } from '@langchain/core/output_parsers'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { CoverLetterRequest, AIResponse } from '@/types'
 
+const CHAT_MODEL = 'gpt-4o-mini'
+
 interface UserProfile {
   id: string
   name: string
@@ -31,11 +33,7 @@ export class WriterAgent {
   private supabase: SupabaseClient
 
   constructor(supabaseClient?: SupabaseClient) {
-    this.model = new ChatOpenAI({
-      model: 'gpt-4o-mini',
-      temperature: 0.7,
-      apiKey: process.env.OPENAI_API_KEY,
-    })
+    this.model = this.buildModel(0.7)
     this.supabase = supabaseClient || createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -44,7 +42,7 @@ export class WriterAgent {
 
   private buildModel(temperature: number): ChatOpenAI {
     return new ChatOpenAI({
-      model: 'gpt-4o-mini',
+      model: CHAT_MODEL,
       temperature,
       apiKey: process.env.OPENAI_API_KEY,
     })

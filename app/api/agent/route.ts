@@ -45,9 +45,7 @@ export async function POST(request: NextRequest) {
     )
 
     // ── Rate limiting ─────────────────────────────────────────────────────────
-    // Extract only the first IP from x-forwarded-for (which can be comma-separated)
-    const forwardedFor = request.headers.get('x-forwarded-for')
-    const ip = (forwardedFor ? forwardedFor.split(',')[0].trim() : null) ?? 'unknown'
+    const ip = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown'
     if (!rateLimit(ip, 10, 60_000)) {
       return NextResponse.json(
         { error: 'Too many requests. Please try again later.' },

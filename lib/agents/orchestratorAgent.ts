@@ -8,6 +8,8 @@ import {
 import { StringOutputParser } from '@langchain/core/output_parsers'
 import { AIResponse } from '@/types'
 
+const CHAT_MODEL = 'gpt-4o-mini'
+
 // ── State ────────────────────────────────────────────────────────────────────
 
 const AgentState = Annotation.Root({
@@ -57,7 +59,7 @@ type AgentStateType = typeof AgentState.State
 
 function buildModel(temperature = 0.3): ChatOpenAI {
   return new ChatOpenAI({
-    model: 'gpt-4o-mini',
+    model: CHAT_MODEL,
     temperature,
     apiKey: process.env.OPENAI_API_KEY,
   })
