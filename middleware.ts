@@ -7,7 +7,7 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
 // Rate limiting middleware
 function rateLimit(request: NextRequest, limit: number = 100, windowMs: number = 60000): boolean {
-  const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown'
+  const ip = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown'
   const now = Date.now()
 
   const record = rateLimitStore.get(ip)
@@ -105,7 +105,7 @@ export function middleware(request: NextRequest) {
 
   // Log API requests for monitoring
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    console.log(`${request.method} ${request.nextUrl.pathname} - ${request.ip || 'unknown'}`)
+    console.log(`${request.method} ${request.nextUrl.pathname} - ${request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'}`)
   }
 
   return response

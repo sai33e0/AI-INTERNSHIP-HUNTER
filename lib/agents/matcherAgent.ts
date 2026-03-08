@@ -1,6 +1,15 @@
-import { OpenAI } from 'openai'
+import { ChatOpenAI } from '@langchain/openai'
+import {
+  ChatPromptTemplate,
+  HumanMessagePromptTemplate,
+  SystemMessagePromptTemplate,
+} from '@langchain/core/prompts'
+import { StringOutputParser } from '@langchain/core/output_parsers'
+import { OpenAI as OpenAIClient } from 'openai'
 import { supabase } from '@/lib/supabaseClient'
 import { MatchingPreferences, AIResponse } from '@/types'
+
+const CHAT_MODEL = 'gpt-4o-mini'
 
 interface UserProfile {
   id: string
@@ -27,12 +36,16 @@ interface Internship {
 }
 
 export class MatcherAgent {
-  private openai: OpenAI
+  private model: ChatOpenAI
+  private embeddingClient: OpenAIClient
 
   constructor() {
-    this.openai = new OpenAI({
+    this.model = new ChatOpenAI({
+      model: CHAT_MODEL,
+      temperature: 0.3,
       apiKey: process.env.OPENAI_API_KEY,
     })
+    this.embeddingClient = new OpenAIClient({ apiKey: process.env.OPENAI_API_KEY })
   }
 
   async generateUserEmbedding(userProfile: UserProfile): Promise<number[]> {
@@ -52,8 +65,9 @@ export class MatcherAgent {
         Education: ${userProfile.education || 'Not specified'}
       `.trim()
 
-      const response = await this.openai.embeddings.create({
-        model: "text-embedding-ada-002",
+      // Use the shared embedding client (OpenAI embeddings endpoint)
+      const response = await this.embeddingClient.embeddings.create({
+        model: 'text-embedding-ada-002',
         input: combinedText,
       })
 
@@ -76,8 +90,8 @@ export class MatcherAgent {
         Salary Range: ${internship.salary || 'Not specified'}
       `.trim()
 
-      const response = await this.openai.embeddings.create({
-        model: "text-embedding-ada-002",
+      const response = await this.embeddingClient.embeddings.create({
+        model: 'text-embedding-ada-002',
         input: internshipText,
       })
 
@@ -230,62 +244,57 @@ export class MatcherAgent {
     preferences: MatchingPreferences
   ): Promise<number> {
     try {
-      // Use GPT-4 for detailed analysis
-      const prompt = `
-        Analyze the match between this user profile and internship description:
+      const parser = new StringOutputParser()
 
-        User Profile:
-        Name: ${user.name}
-        Resume Text: ${await this.extractResumeText(user.resume_url)}
-        GitHub Profile: ${await this.extractGitHubProfile(user.github_url)}
-        Skills: ${user.skills?.join(', ') || 'Not specified'}
+      const prompt = ChatPromptTemplate.fromMessages([
+        SystemMessagePromptTemplate.fromTemplate(
+          'You are an expert career counselor and technical recruiter. ' +
+          'Analyze user profiles against job requirements and return a JSON object with match scores.'
+        ),
+        HumanMessagePromptTemplate.fromTemplate(
+          'Analyze the match between this user profile and internship description:\n\n' +
+          'User Profile:\n' +
+          'Name: {name}\n' +
+          'Resume Text: {resumeText}\n' +
+          'GitHub Profile: {githubProfile}\n' +
+          'Skills: {skills}\n\n' +
+          'Internship Details:\n' +
+          'Title: {title}\n' +
+          'Company: {company}\n' +
+          'Description: {description}\n' +
+          'Requirements: {requirements}\n\n' +
+          'Preferences:\n' +
+          '- Skills Weight: {skillsWeight}\n' +
+          '- Experience Weight: {experienceWeight}\n' +
+          '- Location Weight: {locationWeight}\n' +
+          '- Company Weight: {companyWeight}\n\n' +
+          'Return a JSON object:\n' +
+          '{"overallScore":0.85,"skillsMatch":0.9,"experienceMatch":0.8,' +
+          '"locationMatch":0.7,"companyFit":0.85,' +
+          '"recommendations":["..."],"missingSkills":["..."],"strengths":["..."]}'
+        ),
+      ])
 
-        Internship Details:
-        Title: ${internship.title}
-        Company: ${internship.company}
-        Description: ${internship.description || 'No description'}
-        Requirements: ${internship.requirements || 'No specific requirements'}
+      const chain = prompt.pipe(this.model).pipe(parser)
 
-        Preferences:
-        - Skills Weight: ${preferences.skills}
-        - Experience Weight: ${preferences.experience}
-        - Location Weight: ${preferences.location}
-        - Company Weight: ${preferences.company}
-
-        Provide a detailed match analysis and return a JSON object with:
-        {
-          "overallScore": 0.85,
-          "skillsMatch": 0.9,
-          "experienceMatch": 0.8,
-          "locationMatch": 0.7,
-          "companyFit": 0.85,
-          "recommendations": ["User has strong React experience", "Consider highlighting Python projects"],
-          "missingSkills": ["Docker", "AWS"],
-          "strengths": ["Full-stack development", "Problem solving", "Team collaboration"]
-        }
-
-        Focus on providing specific, actionable insights.
-      `
-
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert career counselor and technical recruiter. Analyze user profiles against job requirements and provide detailed matching scores and recommendations."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
+      const analysisText = await chain.invoke({
+        name: user.name,
+        resumeText: await this.extractResumeText(user.resume_url),
+        githubProfile: await this.extractGitHubProfile(user.github_url),
+        skills: user.skills?.join(', ') || 'Not specified',
+        title: internship.title,
+        company: internship.company,
+        description: internship.description || 'No description',
+        requirements: internship.requirements || 'No specific requirements',
+        skillsWeight: preferences.skills,
+        experienceWeight: preferences.experience,
+        locationWeight: preferences.location,
+        companyWeight: preferences.company,
       })
 
-      const analysisText = response.choices[0].message.content || '{}'
-
       try {
-        const analysis = JSON.parse(analysisText)
+        const jsonMatch = analysisText.match(/\{[\s\S]*\}/)
+        const analysis = JSON.parse(jsonMatch ? jsonMatch[0] : analysisText)
 
         // Calculate weighted score based on preferences
         const weightedScore =
