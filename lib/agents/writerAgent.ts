@@ -1,4 +1,10 @@
-import { OpenAI } from 'openai'
+import { ChatOpenAI } from '@langchain/openai'
+import {
+  ChatPromptTemplate,
+  HumanMessagePromptTemplate,
+  SystemMessagePromptTemplate,
+} from '@langchain/core/prompts'
+import { StringOutputParser } from '@langchain/core/output_parsers'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { CoverLetterRequest, AIResponse } from '@/types'
 
@@ -21,17 +27,27 @@ interface Internship {
 }
 
 export class WriterAgent {
-  private openai: OpenAI
+  private model: ChatOpenAI
   private supabase: SupabaseClient
 
   constructor(supabaseClient?: SupabaseClient) {
-    this.openai = new OpenAI({
+    this.model = new ChatOpenAI({
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
       apiKey: process.env.OPENAI_API_KEY,
     })
     this.supabase = supabaseClient || createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
+  }
+
+  private buildModel(temperature: number): ChatOpenAI {
+    return new ChatOpenAI({
+      model: 'gpt-4o-mini',
+      temperature,
+      apiKey: process.env.OPENAI_API_KEY,
+    })
   }
 
   async generateCoverLetter(request: CoverLetterRequest): Promise<AIResponse> {
@@ -107,67 +123,56 @@ export class WriterAgent {
 
       // Determine letter length guidelines
       const wordCount = length === 'short' ? '200-300' : length === 'long' ? '400-500' : '300-400'
+      const toneStyle = tone === 'professional' ? 'formal' : tone === 'casual' ? 'friendly but still professional' : 'enthusiastic and passionate'
 
-      const prompt = `
-        Write a compelling cover letter for the following internship application:
+      const parser = new StringOutputParser()
 
-        Applicant Information:
-        Name: ${user.name}
-        Email: ${user.email}
-        Resume Summary: ${resumeText}
-        GitHub Profile: ${githubProfile}
+      const prompt = ChatPromptTemplate.fromMessages([
+        SystemMessagePromptTemplate.fromTemplate(
+          'You are an expert career counselor and professional writer specializing in ' +
+          'crafting compelling cover letters. Your letters are authentic, persuasive, ' +
+          'and tailored to each specific opportunity.'
+        ),
+        HumanMessagePromptTemplate.fromTemplate(
+          'Write a compelling cover letter for the following internship application:\n\n' +
+          'Applicant Information:\n' +
+          'Name: {name}\nEmail: {email}\n' +
+          'Resume Summary: {resumeText}\nGitHub Profile: {githubProfile}\n\n' +
+          'Internship Details:\n' +
+          'Position: {title}\nCompany: {company}\n' +
+          'Location: {location}\nJob Description: {description}\nRequirements: {requirements}\n\n' +
+          'Cover Letter Requirements:\n' +
+          '- Tone: {tone} ({toneStyle} language)\n' +
+          '- Word Count: {wordCount} words\n' +
+          '- Custom Points to Include: {customPoints}\n\n' +
+          'Guidelines:\n' +
+          '1. Start with a strong opening that grabs attention\n' +
+          '2. Connect the applicant\'s skills and experience to the specific job requirements\n' +
+          '3. Show genuine interest in the company and position\n' +
+          '4. Include specific examples of relevant projects or achievements\n' +
+          '5. End with a strong call to action\n' +
+          '6. Make it unique and avoid generic templates\n\n' +
+          'Format the letter professionally with proper structure and signature.'
+        ),
+      ])
 
-        Internship Details:
-        Position: ${internship.title}
-        Company: ${internship.company}
-        Location: ${internship.location || 'Not specified'}
-        Job Description: ${internship.description || 'No description provided'}
-        Requirements: ${internship.requirements || 'No specific requirements listed'}
+      const chain = prompt.pipe(this.model).pipe(parser)
 
-        Cover Letter Requirements:
-        - Tone: ${tone}
-        - Word Count: ${wordCount} words
-        - Custom Points to Include: ${customPoints.length > 0 ? customPoints.join(', ') : 'None specified'}
-
-        Guidelines:
-        1. Start with a strong opening that grabs attention
-        2. Connect the applicant's skills and experience to the specific job requirements
-        3. Show genuine interest in the company and position
-        4. Include specific examples of relevant projects or achievements
-        5. End with a strong call to action
-        6. Use ${tone === 'professional' ? 'formal' : tone === 'casual' ? 'friendly but still' : 'enthusiastic and'} language
-        7. Make it unique and avoid generic templates
-        8. Highlight how the applicant can contribute to the company
-
-        Format the letter professionally with:
-        - Applicant's contact information at the top
-        - Date
-        - Hiring manager information (use generic if not specified)
-        - Proper salutation
-        - 3-4 well-structured paragraphs
-        - Professional closing
-        - Signature line
-
-        Make it sound natural and authentic, not robotic.
-      `
-
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert career counselor and professional writer specializing in crafting compelling cover letters. Your letters are authentic, persuasive, and tailored to each specific opportunity."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
+      const coverLetter = await chain.invoke({
+        name: user.name,
+        email: user.email,
+        resumeText,
+        githubProfile,
+        title: internship.title,
+        company: internship.company,
+        location: internship.location || 'Not specified',
+        description: internship.description || 'No description provided',
+        requirements: internship.requirements || 'No specific requirements listed',
+        tone,
+        toneStyle,
+        wordCount,
+        customPoints: customPoints.length > 0 ? customPoints.join(', ') : 'None specified',
       })
-
-      const coverLetter = response.choices[0].message.content
 
       if (!coverLetter) {
         throw new Error('No cover letter generated')
@@ -187,71 +192,53 @@ export class WriterAgent {
     originalLetter: string
   ): Promise<string[]> {
     try {
-      const variations = []
+      const parser = new StringOutputParser()
+      const variations: string[] = []
 
       // Variation 1: More enthusiastic tone
-      const enthusiasticPrompt = `
-        Rewrite this cover letter with a more enthusiastic and passionate tone while maintaining professionalism:
+      const enthusiasticPrompt = ChatPromptTemplate.fromMessages([
+        SystemMessagePromptTemplate.fromTemplate(
+          'You are a career coach who helps candidates show more enthusiasm and passion in their applications.'
+        ),
+        HumanMessagePromptTemplate.fromTemplate(
+          'Rewrite this cover letter with a more enthusiastic and passionate tone while maintaining professionalism.\n\n' +
+          'Original Letter:\n{originalLetter}\n\n' +
+          'Applicant: {name}\nPosition: {title}\nCompany: {company}\n\n' +
+          'Make it more energetic and show genuine excitement for the opportunity.'
+        ),
+      ])
 
-        Original Letter:
-        ${originalLetter}
+      const enthusiasticChain = enthusiasticPrompt.pipe(
+        this.buildModel(0.8)
+      ).pipe(parser)
 
-        Applicant: ${user.name}
-        Position: ${internship.title}
-        Company: ${internship.company}
-
-        Make it more energetic and show genuine excitement for the opportunity.
-      `
-
-      const enthusiasticResponse = await this.openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "You are a career coach who helps candidates show more enthusiasm and passion in their applications."
-          },
-          {
-            role: "user",
-            content: enthusiasticPrompt
-          }
-        ],
-        temperature: 0.8,
-        max_tokens: 2000,
+      const enthusiasticVersion = await enthusiasticChain.invoke({
+        originalLetter,
+        name: user.name,
+        title: internship.title,
+        company: internship.company,
       })
-
-      if (enthusiasticResponse.choices[0].message.content) {
-        variations.push(enthusiasticResponse.choices[0].message.content)
-      }
+      if (enthusiasticVersion) variations.push(enthusiasticVersion)
 
       // Variation 2: More concise version
-      const concisePrompt = `
-        Create a more concise version of this cover letter (around 200-250 words) while maintaining the key points and impact:
+      const concisePrompt = ChatPromptTemplate.fromMessages([
+        SystemMessagePromptTemplate.fromTemplate(
+          'You are an expert editor who specializes in making writing more concise and impactful.'
+        ),
+        HumanMessagePromptTemplate.fromTemplate(
+          'Create a more concise version of this cover letter (around 200-250 words) ' +
+          'while maintaining the key points and impact:\n\n' +
+          'Original Letter:\n{originalLetter}\n\n' +
+          'Focus on the most compelling points and make every word count.'
+        ),
+      ])
 
-        Original Letter:
-        ${originalLetter}
+      const conciseChain = concisePrompt.pipe(
+        this.buildModel(0.6)
+      ).pipe(parser)
 
-        Focus on the most compelling points and make every word count.
-      `
-
-      const conciseResponse = await this.openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert editor who specializes in making writing more concise and impactful."
-          },
-          {
-            role: "user",
-            content: concisePrompt
-          }
-        ],
-        temperature: 0.6,
-        max_tokens: 1500,
-      })
-
-      if (conciseResponse.choices[0].message.content) {
-        variations.push(conciseResponse.choices[0].message.content)
-      }
+      const conciseVersion = await conciseChain.invoke({ originalLetter })
+      if (conciseVersion) variations.push(conciseVersion)
 
       return variations
 
@@ -380,48 +367,39 @@ export class WriterAgent {
         throw new Error('User or internship not found')
       }
 
-      const optimizationPrompt = `
-        Optimize this cover letter based on the provided feedback:
+      const parser = new StringOutputParser()
 
-        Original Cover Letter:
-        ${originalLetter}
+      const optimizationPrompt = ChatPromptTemplate.fromMessages([
+        SystemMessagePromptTemplate.fromTemplate(
+          'You are an expert cover letter editor who helps candidates improve their ' +
+          'application materials based on feedback.'
+        ),
+        HumanMessagePromptTemplate.fromTemplate(
+          'Optimize this cover letter based on the provided feedback:\n\n' +
+          'Original Cover Letter:\n{originalLetter}\n\n' +
+          'Feedback:\n{feedback}\n\n' +
+          'Applicant: {name}\nPosition: {title}\nCompany: {company}\n\n' +
+          'Job Description: {description}\n\n' +
+          'Please:\n' +
+          '1. Address the specific feedback provided\n' +
+          '2. Maintain the letter\'s strengths\n' +
+          '3. Ensure it better aligns with the job requirements\n' +
+          '4. Keep it professional and authentic\n' +
+          '5. Maintain appropriate length (300-400 words)\n\n' +
+          'Provide the optimized cover letter without additional explanations.'
+        ),
+      ])
 
-        Feedback:
-        ${feedback}
+      const chain = optimizationPrompt.pipe(this.model).pipe(parser)
 
-        Applicant: ${user.name}
-        Position: ${internship.title}
-        Company: ${internship.company}
-
-        Job Description: ${internship.description || 'No description provided'}
-
-        Please:
-        1. Address the specific feedback provided
-        2. Maintain the letter's strengths
-        3. Ensure it better aligns with the job requirements
-        4. Keep it professional and authentic
-        5. Maintain appropriate length (300-400 words)
-
-        Provide the optimized cover letter without additional explanations.
-      `
-
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert cover letter editor who helps candidates improve their application materials based on feedback."
-          },
-          {
-            role: "user",
-            content: optimizationPrompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
+      const optimizedLetter = await chain.invoke({
+        originalLetter,
+        feedback,
+        name: user.name,
+        title: internship.title,
+        company: internship.company,
+        description: internship.description || 'No description provided',
       })
-
-      const optimizedLetter = response.choices[0].message.content
 
       if (!optimizedLetter) {
         throw new Error('No optimized letter generated')
@@ -482,35 +460,30 @@ export class WriterAgent {
         throw new Error('Internship not found')
       }
 
-      const tipsPrompt = `
-        Provide specific tips for writing a strong cover letter for this internship:
+      const parser = new StringOutputParser()
 
-        Position: ${internship.title}
-        Company: ${internship.company}
-        Description: ${internship.description || 'No description provided'}
-        Requirements: ${internship.requirements || 'No specific requirements listed'}
+      const tipsPrompt = ChatPromptTemplate.fromMessages([
+        SystemMessagePromptTemplate.fromTemplate(
+          'You are an experienced career counselor who provides expert advice on cover letter writing.'
+        ),
+        HumanMessagePromptTemplate.fromTemplate(
+          'Provide specific tips for writing a strong cover letter for this internship:\n\n' +
+          'Position: {title}\nCompany: {company}\n' +
+          'Description: {description}\nRequirements: {requirements}\n\n' +
+          'Provide 5-7 specific, actionable tips that will help candidates write a compelling ' +
+          'cover letter for this specific opportunity. Focus on what the company is likely ' +
+          'looking for and how candidates can best present themselves.'
+        ),
+      ])
 
-        Provide 5-7 specific, actionable tips that will help candidates write a compelling cover letter for this specific opportunity.
-        Focus on what the company is likely looking for and how candidates can best present themselves.
-      `
+      const chain = tipsPrompt.pipe(this.model).pipe(parser)
 
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "You are an experienced career counselor who provides expert advice on cover letter writing."
-          },
-          {
-            role: "user",
-            content: tipsPrompt
-          }
-        ],
-        temperature: 0.6,
-        max_tokens: 1000,
+      const tips = await chain.invoke({
+        title: internship.title,
+        company: internship.company,
+        description: internship.description || 'No description provided',
+        requirements: internship.requirements || 'No specific requirements listed',
       })
-
-      const tips = response.choices[0].message.content
 
       if (!tips) {
         throw new Error('No tips generated')

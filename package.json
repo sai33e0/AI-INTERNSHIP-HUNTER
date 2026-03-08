@@ -23,6 +23,9 @@
   },
   "homepage": "https://github.com/sai33e0/AI-INTERNSHIP-HUNTER#readme",
   "dependencies": {
+    "@langchain/core": "^1.1.31",
+    "@langchain/langgraph": "^1.2.1",
+    "@langchain/openai": "^1.2.12",
     "@supabase/supabase-js": "^2.80.0",
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.2",
@@ -30,7 +33,7 @@
     "autoprefixer": "^10.4.21",
     "cheerio": "^1.1.2",
     "clsx": "^2.1.1",
-    "langchain": "^1.0.3",
+    "langchain": "^1.2.30",
     "lucide-react": "^0.553.0",
     "next": "^14.2.33",
     "openai": "^6.8.1",
